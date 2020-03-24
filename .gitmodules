@@ -1,0 +1,3 @@
+[submodule "src/lookahead"]
+	path = src/lookahead
+	url = https://github.com/lonePatient/lookahead_pytorch
