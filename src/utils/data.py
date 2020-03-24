@@ -10,60 +10,61 @@ import numpy as np
 import string
 from tqdm import tqdm, notebook
 
-def split_dataframe(df:pd.DataFrame, train_frac:float, shuffle: bool ):
-    """
-    Splits DataFrame into train and val
-    Args:
-        df: DataFrame to split, note: indexes will be reset
-        train_frac: fraction to use for training
-        shuffle: Shuffles df if true
-    Returns:
-        split_df: DataFrame with splits mentioned in 'split' column
-    """
-    assert train_frac <= 1.0
-
-    if train_frac == 1.0:
-        df.split == 'train'
-        return df
-
-    df.index = range(len(df.index)) #resetting index
-    df = df.copy()
-
-    if shuffle:
-        df = df.sample(frac=1).sample(frac=1)
-
-    val_frac = 1 - train_frac
-
-    assert val_frac + train_frac == 1.0
-
-    split_df = None
-
-    labels = set(df.label)
-    assert len(labels)!= 1
-
-    for lbl in labels:
-        temp_df = df[df.label == lbl]
-        _train_df = temp_df.sample(frac=train_frac)
-        _train_df['split'] = 'train'
-        _val_df  = temp_df[~temp_df.index.isin(_train_df.index)].copy()
-        _val_df['split'] = 'val'
-
-        if split_df is None:
-            split_df = pd.concat([_train_df,_val_df])
-        else:
-            split_df = pd.concat([split_df,_train_df,_val_df])
-
-
-    assert sum(df.label.value_counts()) == \
-        sum(split_df[split_df.split == 'train'].label.value_counts())\
-        + sum(split_df[split_df.split == 'val'].label.value_counts())
-
-    return split_df
 
 class Datasplitter(object):
     """
     Helper class for generating the datasplits and batches
     """
+    @staticmethod
+    def split_dataframe(df:pd.DataFrame, train_frac:float, shuffle: bool ):
+        """
+        Splits DataFrame into train and val
+        Args:
+            df: DataFrame to split, note: indexes will be reset
+            train_frac: fraction to use for training
+            shuffle: Shuffles df if true
+        Returns:
+            split_df: DataFrame with splits mentioned in 'split' column
+        """
+        assert train_frac <= 1.0
+
+        if train_frac == 1.0:
+            df.split == 'train'
+            return df
+
+        df.index = range(len(df.index)) #resetting index
+        df = df.copy()
+
+        if shuffle:
+            df = df.sample(frac=1).sample(frac=1)
+
+        val_frac = 1 - train_frac
+
+        assert val_frac + train_frac == 1.0
+
+        split_df = None
+
+        labels = set(df.label)
+        assert len(labels)!= 1
+
+        for lbl in labels:
+            temp_df = df[df.label == lbl]
+            _train_df = temp_df.sample(frac=train_frac)
+            _train_df['split'] = 'train'
+            _val_df  = temp_df[~temp_df.index.isin(_train_df.index)].copy()
+            _val_df['split'] = 'val'
+
+            if split_df is None:
+                split_df = pd.concat([_train_df,_val_df])
+            else:
+                split_df = pd.concat([split_df,_train_df,_val_df])
+
+
+        assert sum(df.label.value_counts()) == \
+            sum(split_df[split_df.split == 'train'].label.value_counts())\
+            + sum(split_df[split_df.split == 'val'].label.value_counts())
+
+        return split_df
 
     @staticmethod
     def generate_batches(
