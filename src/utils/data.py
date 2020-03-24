@@ -1,5 +1,5 @@
 """
-Utilities for creating the dataset for 
+Utilities for creating the dataset for
 
 """
 from torch.utils.data import Dataset, DataLoader
@@ -10,6 +10,55 @@ import numpy as np
 import string
 from tqdm import tqdm, notebook
 
+def split_dataframe(df:pd.DataFrame, train_frac:float, shuffle: bool ):
+    """
+    Splits DataFrame into train and val
+    Args:
+        df: DataFrame to split, note: indexes will be reset
+        train_frac: fraction to use for training
+        shuffle: Shuffles df if true
+    Returns:
+        split_df: DataFrame with splits mentioned in 'split' column
+    """
+    assert train_frac <= 1.0
+
+    if train_frac == 1.0:
+        df.split == 'train'
+        return df
+
+    df.index = range(len(df.index)) #resetting index
+    df = df.copy()
+
+    if shuffle:
+        df = df.sample(frac=1).sample(frac=1)
+
+    val_frac = 1 - train_frac
+
+    assert val_frac + train_frac == 1.0
+
+    split_df = None
+
+    labels = set(df.label)
+    assert len(labels)!= 1
+
+    for lbl in labels:
+        temp_df = df[df.label == lbl]
+        _train_df = temp_df.sample(frac=train_frac)
+        _train_df['split'] = 'train'
+        _val_df  = temp_df[~temp_df.index.isin(_train_df.index)].copy()
+        _val_df['split'] = 'val'
+
+        if split_df is None:
+            split_df = pd.concat([_train_df,_val_df])
+        else:
+            split_df = pd.concat([split_df,_train_df,_val_df])
+
+
+    assert sum(df.label.value_counts()) == \
+        sum(split_df[split_df.split == 'train'].label.value_counts())\
+        + sum(split_df[split_df.split == 'val'].label.value_counts())
+
+    return split_df
 
 class Datasplitter(object):
     """
@@ -21,7 +70,7 @@ class Datasplitter(object):
         dataset, batch_size, shuffle=True, drop_last=False, device="cpu"
     ):
         """
-        A generator function which wraps the PyTorch DataLoader. It will 
+        A generator function which wraps the PyTorch DataLoader. It will
         ensure each tensor is on the write device location.
         """
         dataloader = DataLoader(
@@ -151,16 +200,16 @@ class Vocabulary(object):
         return [self.add_token(token) for token in tokens]
 
     def lookup_token(self, token):
-        """Retrieve the index associated with the token 
+        """Retrieve the index associated with the token
             or the UNK index if token isn't present.
 
             Args:
-                token (str): the token to look up 
+                token (str): the token to look up
             Returns:
                 index (int): the index corresponding to the token
             Notes:
-                `unk_index` needs to be >=0 (having been added into the Vocabulary) 
-                for the UNK functionality 
+                `unk_index` needs to be >=0 (having been added into the Vocabulary)
+                for the UNK functionality
             """
         if self.unk_index >= 0:
             return self._token_to_idx.get(token, self.unk_index)
@@ -170,7 +219,7 @@ class Vocabulary(object):
     def lookup_index(self, index):
         """Return the token associated with the index
 
-            Args: 
+            Args:
                 index (int): the index to look up
             Returns:
                 token (str): the token corresponding to the index
@@ -225,16 +274,16 @@ class SequenceVocabulary(Vocabulary):
             self._max_len = self._max_len + 2
 
     def lookup_token(self, token):
-        """Retrieve the index associated with the token 
+        """Retrieve the index associated with the token
           or the UNK index if token isn't present.
 
         Args:
-            token (str): the token to look up 
+            token (str): the token to look up
         Returns:
             index (int): the index corresponding to the token
         Notes:
-            `unk_index` needs to be >=0 (having been added into the Vocabulary) 
-              for the UNK functionality 
+            `unk_index` needs to be >=0 (having been added into the Vocabulary)
+              for the UNK functionality
         """
         if self.unk_index >= 0:
             return self._token_to_idx.get(token, self.unk_index)
@@ -252,10 +301,10 @@ class SequenceVectorizer(object):
             data_vocab (SequenceVocabulary): maps words to integers
             label_vocab (Vocabulary): maps class labels to integers
             vector_len (int): length of the vector produced by the vectorizer.
-                if -1, the size of the vector is the size of the sentence being 
+                if -1, the size of the vector is the size of the sentence being
                 vectorized
-            mode (str): one of "onehot","embd". If "embd", the tokens formed 
-                after vectorization are replaced with their index 
+            mode (str): one of "onehot","embd". If "embd", the tokens formed
+                after vectorization are replaced with their index
                 in the Vocabulary._token_to_idx.keys()
         """
         assert mode in ["onehot", "embd"]
@@ -321,7 +370,7 @@ class SequenceVectorizer(object):
         Args:
             data_df (pd.DataFrame): the dataset dataframe
             cutoff (int): frequencey based filtering
-            tokenizer (Callable): generates tokens from sentences 
+            tokenizer (Callable): generates tokens from sentences
             vector_len (int,str): length of the vector produced by the vectorizer.
                 -1 : the size of the vector is the size of the sentence being vectorized
                 max : the size is set to the no of tokens in the longest sentence
@@ -379,7 +428,7 @@ class SequenceVectorizer(object):
         Args:
             data_df (pd.DataFrame): the dataset dataframe
             cutoff (int): frequencey based filtering
-            tokenizer (Callable): generates tokens from sentences 
+            tokenizer (Callable): generates tokens from sentences
             vector_len (int,str): length of the vector produced by the vectorizer.
                 -1 : the size of the vector is the size of the sentence being vectorized
                 max : the size is set to the no of tokens in the longest sentence
@@ -428,10 +477,10 @@ class Vectorizer(object):
             review_vocab (Vocabulary): maps words to integers
             rating_vocab (Vocabulary): maps class labels to integers
             vector_len (int): length of the vector produced by the vectorizer.
-                if -1, the size of the vector is the size of the sentence being 
+                if -1, the size of the vector is the size of the sentence being
                 vectorized
-            mode (str): one of "onehot","embd". If "embd", the tokens formed 
-                after vectorization are replaced with their index 
+            mode (str): one of "onehot","embd". If "embd", the tokens formed
+                after vectorization are replaced with their index
                 in the Vocabulary._token_to_idx.keys()
         """
         assert mode in ["onehot", "embd"]
@@ -505,7 +554,7 @@ class Vectorizer(object):
         Args:
             data_df (pd.DataFrame): the dataset dataframe
             cutoff (int): frequencey based filtering
-            tokenizer (Callable): generates tokens from sentences 
+            tokenizer (Callable): generates tokens from sentences
             vector_len (int,str): length of the vector produced by the vectorizer.
                 -1 : the size of the vector is the size of the sentence being vectorized
                 max : the size is set to the no of tokens in the longest sentence
@@ -547,7 +596,7 @@ class Vectorizer(object):
             vector_len = data_vocab.get_max_len()
 
         return cls(data_vocab, label_vocab, vector_len, mode)
-    
+
     @classmethod
     def from_dataframe_nofilter(
         cls,
@@ -564,7 +613,7 @@ class Vectorizer(object):
         Args:
             data_df (pd.DataFrame): the dataset dataframe
             cutoff (int): frequencey based filtering
-            tokenizer (Callable): generates tokens from sentences 
+            tokenizer (Callable): generates tokens from sentences
             vector_len (int,str): length of the vector produced by the vectorizer.
                 -1 : the size of the vector is the size of the sentence being vectorized
                 max : the size is set to the no of tokens in the longest sentence
@@ -650,7 +699,7 @@ class Datasetmaker(Dataset):
         Args:
             index (int): the index to the data point
         Returns:
-            a dictionary holding the data point's features (x_data) 
+            a dictionary holding the data point's features (x_data)
             and label (y_target)
         """
         row = self._target_df.iloc[index]
